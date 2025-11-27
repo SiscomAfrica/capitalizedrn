@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../../types';
 import { Button } from '../../components/common';
 import { colors, spacing, typography } from '../../theme';
+import { useUserStore } from '../../store';
 
 type SubscriptionScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -22,6 +23,7 @@ type SubscriptionScreenNavigationProp = NativeStackNavigationProp<
 export const SubscriptionScreen: React.FC = () => {
   const navigation = useNavigation<SubscriptionScreenNavigationProp>();
   const [loading, setLoading] = useState(false);
+  const { updateUser } = useUserStore();
 
   const benefits = [
     'Access to all investment opportunities',
@@ -46,18 +48,27 @@ export const SubscriptionScreen: React.FC = () => {
           onPress: async () => {
             setLoading(true);
             try {
-              // TODO: Call API POST /api/subscription/initiate
+              // TODO: Call API POST /api/subscriptions/subscribe
               // This should trigger STK Push to user's phone
+              console.log('💳 Phase 3: Initiating subscription payment...');
               await new Promise<void>(resolve => setTimeout(resolve, 2000));
               
-              // Mock successful payment
+              // Mock successful payment - Update user to allow investing
+              updateUser({ 
+                can_invest: true,
+                subscription_active: true,
+                subscription_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+              });
+              
+              // Show success and navigate to main app
               Alert.alert(
-                'Subscription Activated!',
-                'Your subscription is now active. Welcome to SISCOM Capitalized!',
+                '🎉 Subscription Activated!',
+                'Your subscription is now active. You can now start investing in opportunities!',
                 [
                   {
                     text: 'Start Investing',
                     onPress: () => {
+                      console.log('💳 Phase 3 complete: Subscription active, navigating to Phase 4...');
                       navigation.replace('MainTabs');
                     },
                   },

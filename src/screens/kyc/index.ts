@@ -1,2 +1,2 @@
-export { OnboardingScreen } from './OnboardingScreen';
+export { KYCScreen } from './KYCScreen';
 

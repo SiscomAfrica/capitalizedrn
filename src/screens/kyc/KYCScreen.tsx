@@ -8,45 +8,139 @@ import {
   SafeAreaView,
   StatusBar,
   Alert,
+  Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { AuthStackParamList } from '../../types';
+import { launchImageLibrary, launchCamera, ImagePickerResponse } from 'react-native-image-picker';
+import { RootStackParamList } from '../../types';
 import { Button, Input } from '../../components/common';
 import { colors, spacing, typography } from '../../theme';
+import { kycApi } from '../../services/api';
+import { useKYCStore, useUserStore } from '../../store';
+import { AxiosError } from 'axios';
+import { APIErrorResponse } from '../../types/api';
 
 type KYCScreenNavigationProp = NativeStackNavigationProp<
-  AuthStackParamList,
+  RootStackParamList,
   'KYC'
 >;
+
+interface UploadedImage {
+  uri: string;
+  fileName: string;
+  type: string;
+  fileSize?: number;
+}
 
 export const KYCScreen: React.FC = () => {
   const navigation = useNavigation<KYCScreenNavigationProp>();
   const [idNumber, setIdNumber] = useState('');
-  const [idPhoto, setIdPhoto] = useState<string | null>(null);
-  const [selfiePhoto, setSelfiePhoto] = useState<string | null>(null);
+  const [idType, setIdType] = useState<'national_id' | 'passport' | 'drivers_license'>('national_id');
+  const [idFrontPhoto, setIdFrontPhoto] = useState<UploadedImage | null>(null);
+  const [idBackPhoto, setIdBackPhoto] = useState<UploadedImage | null>(null);
+  const [selfiePhoto, setSelfiePhoto] = useState<UploadedImage | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleUploadIDPhoto = () => {
-    // TODO: Implement image picker for ID photo
-    Alert.alert('Upload ID Photo', 'Image picker will be implemented');
-    setIdPhoto('mock-id-photo-uri');
+  const { setSubmitting, setError: setKYCError } = useKYCStore();
+  const { updateUser } = useUserStore();
+
+  const selectImage = (callback: (image: UploadedImage) => void, useCamera: boolean = false) => {
+    const options = {
+      mediaType: 'photo' as const,
+      quality: 0.8 as const,
+      maxWidth: 1920,
+      maxHeight: 1920,
+    };
+
+    const handleResponse = (response: ImagePickerResponse) => {
+      if (response.didCancel) {
+        console.log('User cancelled image picker');
+      } else if (response.errorCode) {
+        Alert.alert('Error', response.errorMessage || 'Failed to pick image');
+      } else if (response.assets && response.assets[0]) {
+        const asset = response.assets[0];
+        callback({
+          uri: asset.uri || '',
+          fileName: asset.fileName || `image_${Date.now()}.jpg`,
+          type: asset.type || 'image/jpeg',
+          fileSize: asset.fileSize,
+        });
+      }
+    };
+
+    if (useCamera) {
+      launchCamera(options, handleResponse);
+    } else {
+      launchImageLibrary(options, handleResponse);
+    }
+  };
+
+  const handleUploadIDFront = () => {
+    Alert.alert(
+      'ID Front Photo',
+      'Choose an option',
+      [
+        { text: 'Take Photo', onPress: () => selectImage(setIdFrontPhoto, true) },
+        { text: 'Choose from Gallery', onPress: () => selectImage(setIdFrontPhoto, false) },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const handleUploadIDBack = () => {
+    Alert.alert(
+      'ID Back Photo',
+      'Choose an option',
+      [
+        { text: 'Take Photo', onPress: () => selectImage(setIdBackPhoto, true) },
+        { text: 'Choose from Gallery', onPress: () => selectImage(setIdBackPhoto, false) },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   const handleTakeSelfie = () => {
-    // TODO: Implement camera for selfie
-    Alert.alert('Take Selfie', 'Camera will be implemented');
-    setSelfiePhoto('mock-selfie-uri');
+    Alert.alert(
+      'Selfie',
+      'Choose an option',
+      [
+        { text: 'Take Photo', onPress: () => selectImage(setSelfiePhoto, true) },
+        { text: 'Choose from Gallery', onPress: () => selectImage(setSelfiePhoto, false) },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const uploadImageToS3 = async (imageData: UploadedImage, uploadUrl: string): Promise<void> => {
+    try {
+      console.log('📤 Uploading image to S3:', imageData.fileName);
+      console.log('📤 Image URI:', imageData.uri);
+      
+      // Use kycApi.uploadFileToS3 which handles React Native file reading
+      await kycApi.uploadFileToS3(uploadUrl, imageData.uri, imageData.type);
+      
+      console.log('✅ Image uploaded to S3 successfully');
+    } catch (error) {
+      console.error('❌ Error uploading to S3:', error);
+      throw new Error('Failed to upload image');
+    }
   };
 
   const handleSubmitKYC = async () => {
+    // Validation
     if (!idNumber.trim()) {
       Alert.alert('Error', 'Please enter your ID number');
       return;
     }
 
-    if (!idPhoto) {
-      Alert.alert('Error', 'Please upload your ID photo');
+    if (!idFrontPhoto) {
+      Alert.alert('Error', 'Please upload the front of your ID');
+      return;
+    }
+
+    if (!idBackPhoto) {
+      Alert.alert('Error', 'Please upload the back of your ID');
       return;
     }
 
@@ -56,30 +150,59 @@ export const KYCScreen: React.FC = () => {
     }
 
     setLoading(true);
+    setSubmitting(true);
+    
     try {
-      // TODO: Call API POST /api/users/kyc
-      // Mock delay for KYC submission
-      await new Promise<void>(resolve => setTimeout(resolve, 2000));
-      
-      // Show success message
+      // Step 1: Get presigned upload URLs
+      const uploadUrls = await kycApi.getUploadUrls();
+
+      // Step 2: Upload images to S3
+      await Promise.all([
+        uploadImageToS3(idFrontPhoto, uploadUrls.id_front.upload_url),
+        uploadImageToS3(idBackPhoto, uploadUrls.id_back.upload_url),
+        uploadImageToS3(selfiePhoto, uploadUrls.selfie.upload_url),
+      ]);
+
+      // Step 3: Submit KYC with S3 URLs
+      const submitResponse = await kycApi.submitKYC({
+        id_front_url: uploadUrls.id_front.s3_url,
+        id_back_url: uploadUrls.id_back.s3_url,
+        selfie_url: uploadUrls.selfie.s3_url,
+        id_number: idNumber.trim(),
+        id_type: idType,
+      });
+
+      // Update user KYC status (should be "pending" after submission)
+      updateUser({ kyc_status: submitResponse.kyc_status });
+
+      // Show success message and navigate to Main Tabs
+      // According to Sequence Diagram: Phase 2 complete, KYC is pending review
       Alert.alert(
-        'KYC Submitted',
-        'Your documents are under review. This may take up to 24 hours.',
+        '✅ KYC Submitted Successfully!',
+        submitResponse.message || 'Your documents are under review. This may take up to 24 hours. You can explore the app while waiting.',
         [
           {
-            text: 'OK',
+            text: 'Continue',
             onPress: () => {
-              // Navigate to subscription screen
-              navigation.getParent()?.navigate('Subscription' as never);
+              // Navigate to MainTabs - user can browse but can't invest until KYC approved
+              console.log('📋 Phase 2 complete: KYC submitted, navigating to app...');
+              navigation.replace('MainTabs');
             },
           },
         ]
       );
     } catch (error) {
       console.error('KYC submission failed:', error);
-      Alert.alert('Error', 'Failed to submit KYC. Please try again.');
+      const axiosError = error as AxiosError<APIErrorResponse>;
+      const errorMessage = 
+        axiosError.response?.data?.message || 
+        axiosError.response?.data?.error ||
+        'Failed to submit KYC. Please try again.';
+      Alert.alert('Error', errorMessage);
+      setKYCError(errorMessage);
     } finally {
       setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -111,25 +234,52 @@ export const KYCScreen: React.FC = () => {
               keyboardType="number-pad"
             />
 
-            {/* ID Photo Upload */}
+            {/* ID Front Photo Upload */}
             <View style={styles.uploadSection}>
-              <Text style={styles.uploadLabel}>ID Photo</Text>
+              <Text style={styles.uploadLabel}>ID Front Photo</Text>
               <TouchableOpacity
                 style={styles.uploadButton}
-                onPress={handleUploadIDPhoto}>
-                {idPhoto ? (
+                onPress={handleUploadIDFront}>
+                {idFrontPhoto ? (
                   <View style={styles.uploadedContainer}>
                     <View style={styles.mockImage}>
-                      <Text style={styles.mockImageText}>✓ ID Uploaded</Text>
+                      <Text style={styles.mockImageText}>✓ ID Front Uploaded</Text>
                     </View>
                   </View>
                 ) : (
                   <View style={styles.uploadPlaceholder}>
                     <Text style={styles.uploadIcon}>📷</Text>
-                    <Text style={styles.uploadText}>Upload ID Photo</Text>
+                    <Text style={styles.uploadText}>Upload ID Front Photo</Text>
                   </View>
                 )}
               </TouchableOpacity>
+              <Text style={styles.uploadHint}>
+                Clear photo of the front of your ID
+              </Text>
+            </View>
+
+            {/* ID Back Photo Upload */}
+            <View style={styles.uploadSection}>
+              <Text style={styles.uploadLabel}>ID Back Photo</Text>
+              <TouchableOpacity
+                style={styles.uploadButton}
+                onPress={handleUploadIDBack}>
+                {idBackPhoto ? (
+                  <View style={styles.uploadedContainer}>
+                    <View style={styles.mockImage}>
+                      <Text style={styles.mockImageText}>✓ ID Back Uploaded</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.uploadPlaceholder}>
+                    <Text style={styles.uploadIcon}>📷</Text>
+                    <Text style={styles.uploadText}>Upload ID Back Photo</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.uploadHint}>
+                Clear photo of the back of your ID
+              </Text>
             </View>
 
             {/* Selfie */}

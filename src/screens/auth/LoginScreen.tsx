@@ -15,110 +15,103 @@ import { AuthStackParamList } from '../../types';
 import { Button, Input } from '../../components/common';
 import { colors, spacing, typography } from '../../theme';
 import { authApi } from '../../services/api';
+import { useAuthStore, useUserStore } from '../../store';
 import { AxiosError } from 'axios';
 import { APIErrorResponse } from '../../types/api';
 
-type RegistrationScreenNavigationProp = NativeStackNavigationProp<
+type LoginScreenNavigationProp = NativeStackNavigationProp<
   AuthStackParamList,
-  'Registration'
+  'Login'
 >;
 
-export const RegistrationScreen: React.FC = () => {
-  const navigation = useNavigation<RegistrationScreenNavigationProp>();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+export const LoginScreen: React.FC = () => {
+  const navigation = useNavigation<LoginScreenNavigationProp>();
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{
-    name?: string;
-    email?: string;
-    phone?: string;
+    identifier?: string;
     password?: string;
   }>({});
+
+  const { setTokensOnly, setAuthenticated } = useAuthStore();
+  const { setUser } = useUserStore();
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
 
-    if (!name.trim()) {
-      newErrors.name = 'Name is required';
-    }
-
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Email is invalid';
-    }
-
-    if (!phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    } else if (!/^(\+254|0)[17]\d{8}$/.test(phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'Invalid Kenyan phone number';
+    if (!identifier.trim()) {
+      newErrors.identifier = 'Email or phone number is required';
     }
 
     if (!password) {
       newErrors.password = 'Password is required';
-    } else if (password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSignUp = async () => {
+  const handleLogin = async () => {
     if (!validateForm()) {
       return;
     }
 
     setLoading(true);
     try {
-      // Normalize phone number to international format
-      const normalizedPhone = phone.startsWith('+') 
-        ? phone.replace(/\s/g, '') 
-        : phone.replace(/^0/, '+254').replace(/\s/g, '');
-
-      const response = await authApi.register({
-        email: email.trim(),
-        full_name: name.trim(),
+      // Step 1: Login and get tokens + user data (all in one response)
+      const response = await authApi.login({
+        identifier: identifier.trim(),
         password,
-        phone: normalizedPhone,
       });
 
-      // Show success message
-      Alert.alert(
-        'Success',
-        response.message || 'Registration successful! Please verify your phone number.',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('VerifyCode', { email, phone: normalizedPhone }),
-          },
-        ]
-      );
+      console.log('✅ Login successful, user data:', response.user);
+
+      // Step 2: Check if phone is verified FIRST
+      if (!response.user.phone_verified) {
+        console.log('📱 Phone not verified - navigating to verification screen');
+        
+        // Store tokens temporarily (but don't set isAuthenticated yet)
+        await setTokensOnly(response.access_token, response.refresh_token);
+        
+        // Store user data
+        await setUser(response.user);
+        
+        // Navigate to VerifyCode screen - user must verify phone before proceeding
+        navigation.navigate('VerifyCode', {
+          email: response.user.email,
+          phone: response.user.phone,
+        });
+        
+        return; // Stop here - don't set authenticated until phone is verified
+      }
+
+      // Step 3: Phone is verified - proceed with normal flow
+      // Store tokens
+      await setTokensOnly(response.access_token, response.refresh_token);
+
+      // Step 4: Store user data from login response (no extra API call needed)
+      await setUser(response.user);
+
+      // Step 5: Set authenticated - RootNavigator will handle routing based on user state
+      // Follows Sequence Diagram: Profile → KYC → Subscription → Investment
+      setAuthenticated(true);
+
+      console.log('🔐 Authentication successful. RootNavigator will handle routing...');
     } catch (error) {
-      console.error('Registration failed:', error);
+      console.error('❌ Login failed:', error);
+      
+      // Clear any tokens that might have been set
+      const { clearAuth } = useAuthStore.getState();
+      await clearAuth();
+      
       const axiosError = error as AxiosError<APIErrorResponse>;
-      
-      // Log detailed error information
-      console.log('Error details:', {
-        status: axiosError.response?.status,
-        statusText: axiosError.response?.statusText,
-        data: axiosError.response?.data,
-        message: axiosError.message,
-        config: {
-          url: axiosError.config?.url,
-          method: axiosError.config?.method,
-          data: axiosError.config?.data,
-        }
-      });
-      
       const errorMessage = 
         axiosError.response?.data?.message || 
         axiosError.response?.data?.error ||
         axiosError.response?.data?.detail ||
-        'Registration failed. Please try again.';
-      Alert.alert('Registration Failed', errorMessage);
+        'Login failed. Please check your credentials.';
+      Alert.alert('Login Failed', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -138,62 +131,44 @@ export const RegistrationScreen: React.FC = () => {
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>
-            Join SISCOM Capitalized to start investing in exciting opportunities
+            Log in to continue investing with SISCOM Capitalized
           </Text>
 
           <View style={styles.form}>
             <Input
-              label="Full Name"
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter your full name"
-              error={errors.name}
-              autoCapitalize="words"
-            />
-
-            <Input
-              label="Email Address"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="your@email.com"
+              label="Email or Phone Number"
+              value={identifier}
+              onChangeText={setIdentifier}
+              placeholder="your@email.com or +254..."
               keyboardType="email-address"
               autoCapitalize="none"
-              error={errors.email}
-            />
-
-            <Input
-              label="Phone Number"
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="+254 7XX XXX XXX"
-              keyboardType="phone-pad"
-              error={errors.phone}
+              error={errors.identifier}
             />
 
             <Input
               label="Password"
               value={password}
               onChangeText={setPassword}
-              placeholder="At least 8 characters"
+              placeholder="Enter your password"
               secureTextEntry
               error={errors.password}
             />
 
             <Button
-              title="Sign Up"
-              onPress={handleSignUp}
+              title="Log In"
+              onPress={handleLogin}
               variant="primary"
               size="large"
               loading={loading}
-              style={styles.signUpButton}
+              style={styles.loginButton}
             />
 
-            <View style={styles.loginContainer}>
-              <Text style={styles.loginText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => navigation.goBack()}>
-                <Text style={styles.loginLink}>Log In</Text>
+            <View style={styles.signUpContainer}>
+              <Text style={styles.signUpText}>Don't have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Registration')}>
+                <Text style={styles.signUpLink}>Sign Up</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -261,22 +236,23 @@ const styles = StyleSheet.create({
   form: {
     gap: spacing.lg,
   },
-  signUpButton: {
+  loginButton: {
     marginTop: spacing.lg,
   },
-  loginContainer: {
+  signUpContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: spacing.xl,
   },
-  loginText: {
+  signUpText: {
     fontSize: typography.fontSize.base,
     color: colors.gray600,
   },
-  loginLink: {
+  signUpLink: {
     fontSize: typography.fontSize.base,
     color: colors.primary,
     fontWeight: typography.fontWeight.semibold,
   },
 });
+

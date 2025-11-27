@@ -8,13 +8,17 @@ import {
   SafeAreaView,
   StatusBar,
   TextInput,
+  Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { AuthStackParamList } from '../../types';
 import { Button } from '../../components/common';
 import { colors, spacing, typography, borderRadius } from '../../theme';
-import { authService } from '../../services/authService';
+import { authApi, userApi } from '../../services/api';
+import { useAuthStore, useUserStore } from '../../store';
+import { AxiosError } from 'axios';
+import { APIErrorResponse } from '../../types/api';
 
 type VerifyCodeScreenNavigationProp = NativeStackNavigationProp<
   AuthStackParamList,
@@ -31,8 +35,30 @@ export const VerifyCodeScreen: React.FC = () => {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
 
   const inputRefs = useRef<Array<TextInput | null>>([]);
+  const { setTokensOnly, setAuthenticated } = useAuthStore();
+  const { setUser } = useUserStore();
+
+  // Auto-send OTP when screen loads (for login flow)
+  React.useEffect(() => {
+    const sendInitialOTP = async () => {
+      if (!otpSent) {
+        try {
+          console.log('📱 Auto-sending OTP to:', phone);
+          const response = await authApi.resendOtp({ phone });
+          setOtpSent(true);
+          console.log('✅ OTP sent successfully:', response.message);
+        } catch (err) {
+          console.error('❌ Failed to send OTP:', err);
+          // Don't show error - user can still click resend manually
+        }
+      }
+    };
+    
+    sendInitialOTP();
+  }, [phone, otpSent]);
 
   const handleCodeChange = (text: string, index: number) => {
     if (text.length > 1) {
@@ -80,14 +106,66 @@ export const VerifyCodeScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      const isValid = await authService.verifyCode(email, verificationCode);
-      if (isValid) {
-        navigation.navigate('KYC');
-      } else {
-        setError('Invalid verification code. Please try again.');
-      }
+      console.log('📱 Verifying phone with OTP:', verificationCode);
+      console.log('📱 Phone number:', phone);
+      
+      // Step 1: Verify phone with OTP - gets NEW tokens
+      const response = await authApi.verifyPhone({
+        otp: verificationCode,
+        phone,
+      });
+
+      console.log('✅ Phone verified successfully! Token received:', 
+        response.access_token ? 'YES' : 'NO'
+      );
+
+      // Step 2: Store NEW tokens from verification response
+      console.log('💾 Saving tokens to storage...');
+      await setTokensOnly(response.access_token, response.refresh_token);
+      
+      // Wait a moment to ensure tokens are saved to AsyncStorage
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('✅ Tokens saved successfully');
+
+      // Step 3: Fetch updated user profile with the new tokens
+      console.log('👤 Fetching user profile with new tokens...');
+      const userProfile = await userApi.getCurrentUser();
+      await setUser(userProfile);
+
+      console.log('📱 Phone verification complete. User profile updated:', {
+        phone_verified: userProfile.phone_verified,
+        profile_completed: userProfile.profile_completed,
+        kyc_status: userProfile.kyc_status,
+      });
+
+      // Step 4: Set authenticated - phone is now verified
+      // RootNavigator will handle routing to ProfileCompletion/KYC/etc based on user state
+      setAuthenticated(true);
+
+      console.log('🔐 User authenticated. RootNavigator will handle routing...');
+      
+      // Show success message
+      Alert.alert(
+        '✅ Phone Verified!',
+        'Your phone has been verified successfully.',
+        [{ text: 'Continue' }]
+      );
     } catch (err) {
-      setError('Verification failed. Please try again.');
+      console.error('❌ Verification failed:', err);
+      
+      // Clear any tokens that might have been set
+      const { clearAuth } = useAuthStore.getState();
+      await clearAuth();
+      
+      const axiosError = err as AxiosError<APIErrorResponse>;
+      const errorMessage = 
+        axiosError.response?.data?.message || 
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.detail ||
+        'Invalid verification code. Please try again.';
+      setError(errorMessage);
+      Alert.alert('Verification Failed', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -95,10 +173,18 @@ export const VerifyCodeScreen: React.FC = () => {
 
   const handleResendCode = async () => {
     try {
-      await authService.sendVerificationCode(email);
-      // Show success message
+      console.log('📱 Manually resending OTP to:', phone);
+      const response = await authApi.resendOtp({ phone });
+      setOtpSent(true);
+      Alert.alert('Success', response.message || 'OTP resent successfully! Check your phone.');
+      console.log('✅ OTP resent successfully');
     } catch (err) {
-      setError('Failed to resend code. Please try again.');
+      console.error('❌ Resend OTP failed:', err);
+      const axiosError = err as AxiosError<APIErrorResponse>;
+      const errorMessage = 
+        axiosError.response?.data?.message || 
+        'Failed to resend code. Please try again.';
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -129,14 +215,16 @@ export const VerifyCodeScreen: React.FC = () => {
           <Text style={styles.brandName}>SISCOM CAPITALIZED</Text>
 
           <Text style={styles.subtitle}>
-            Enter the 6-digit code sent to your email
+            Enter the 6-digit code sent to {phone}
           </Text>
 
           <View style={styles.codeContainer}>
             {code.map((digit, index) => (
               <TextInput
                 key={index}
-                ref={(ref) => (inputRefs.current[index] = ref)}
+                ref={(ref) => {
+                  inputRefs.current[index] = ref;
+                }}
                 style={[styles.codeInput, error && styles.codeInputError]}
                 value={digit}
                 onChangeText={(text) => handleCodeChange(text, index)}

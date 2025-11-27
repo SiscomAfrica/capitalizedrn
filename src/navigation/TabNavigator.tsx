@@ -6,6 +6,7 @@ import { MainTabParamList } from '../types';
 import { InvestmentsNavigator } from './InvestmentsNavigator';
 import { PortfolioScreen } from '../screens/portfolio/PortfolioScreen';
 import { CommunityScreen } from '../screens/community/CommunityScreen';
+import { ProfileScreen } from '../screens/profile';
 import { colors, spacing } from '../theme';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -45,6 +46,15 @@ export const TabNavigator: React.FC = () => {
         options={{
           tabBarIcon: ({ focused, color }) => (
             <Icon name={focused ? 'people' : 'people-outline'} size={24} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ focused, color }) => (
+            <Icon name={focused ? 'person' : 'person-outline'} size={24} color={color} />
           ),
         }}
       />

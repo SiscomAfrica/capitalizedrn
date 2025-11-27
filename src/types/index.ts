@@ -69,11 +69,14 @@ export interface KYCData {
 
 export type RootStackParamList = {
   Auth: undefined;
+  ProfileCompletion: undefined;
+  KYC: undefined;
   Subscription: undefined;
   MainTabs: undefined;
 };
 
 export type AuthStackParamList = {
+  Login: undefined;
   Registration: undefined;
   VerifyCode: { email: string; phone: string };
   KYC: undefined;
@@ -83,6 +86,7 @@ export type MainTabParamList = {
   Investments: undefined;
   Portfolio: undefined;
   Community: undefined;
+  Profile: undefined;
 };
 
 export type InvestmentsStackParamList = {
