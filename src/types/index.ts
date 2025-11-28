@@ -72,6 +72,8 @@ export type RootStackParamList = {
   ProfileCompletion: undefined;
   KYC: undefined;
   Subscription: undefined;
+  PlanDetails: { planId: string };
+  MySubscription: undefined;
   MainTabs: undefined;
 };
 

@@ -24,29 +24,52 @@ const apiClient: AxiosInstance = axios.create({
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
-    const token = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-    
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-      console.log('🔑 Token found and added to request');
-      console.log('🔑 Full token:', token);
-      console.log('🔑 Authorization header:', config.headers.Authorization);
-    } else {
-      console.log('⚠️ No token found in storage!');
+    try {
+      console.log('🔍 Checking for access token...');
+      console.log('🔍 Storage key:', STORAGE_KEYS.ACCESS_TOKEN);
+      
+      // Try to get all keys to verify storage is working
+      const allKeys = await AsyncStorage.getAllKeys();
+      console.log('📦 All AsyncStorage keys:', allKeys);
+      
+      const token = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+      
+      console.log('🔍 Token retrieval result:', token ? 'FOUND' : 'NOT FOUND');
+      
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+        console.log('✅ Token found and added to request');
+        console.log('🔑 Full token:', token);
+        console.log('🔑 Token length:', token.length);
+        console.log('🔑 Authorization header:', config.headers.Authorization);
+      } else if (!token) {
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('⚠️ NO TOKEN FOUND IN STORAGE!');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('🔍 Storage key checked:', STORAGE_KEYS.ACCESS_TOKEN);
+        console.log('🔍 All available keys:', allKeys);
+        console.log('⚠️ This request will be UNAUTHENTICATED');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      } else if (!config.headers) {
+        console.log('⚠️ Config headers are undefined!');
+      }
+      
+      // Debug logging
+      console.log('🚀 API Request:', {
+        method: config.method?.toUpperCase(),
+        url: config.url,
+        baseURL: config.baseURL,
+        fullURL: `${config.baseURL}${config.url}`,
+        hasToken: !!token,
+        tokenPreview: token ? `${token.substring(0, 20)}...` : 'none',
+        authHeader: config.headers?.Authorization ? 'Present' : 'Missing',
+      });
+      
+      return config;
+    } catch (error) {
+      console.error('❌ Error in request interceptor:', error);
+      return config;
     }
-    
-    // Debug logging
-    console.log('🚀 API Request:', {
-      method: config.method?.toUpperCase(),
-      url: config.url,
-      baseURL: config.baseURL,
-      fullURL: `${config.baseURL}${config.url}`,
-      hasToken: !!token,
-      tokenPreview: token ? `${token.substring(0, 20)}...` : 'none',
-      headers: config.headers,
-    });
-    
-    return config;
   },
   (error: AxiosError) => {
     console.error('❌ Request Error:', error);
@@ -102,11 +125,25 @@ const handleTokenExpiration = async () => {
 // Token management functions
 export const tokenManager = {
   getAccessToken: async (): Promise<string | null> => {
-    return await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    try {
+      const token = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+      console.log('📥 tokenManager.getAccessToken called');
+      console.log('   Result:', token ? `Token found (${token.length} chars)` : 'No token');
+      return token;
+    } catch (error) {
+      console.error('❌ Error getting access token:', error);
+      return null;
+    }
   },
 
   setAccessToken: async (token: string): Promise<void> => {
-    await AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
+      console.log('✅ Access token stored successfully');
+    } catch (error) {
+      console.error('❌ Error setting access token:', error);
+      throw error;
+    }
   },
 
   getRefreshToken: async (): Promise<string | null> => {
@@ -118,10 +155,27 @@ export const tokenManager = {
   },
 
   setTokens: async (accessToken: string, refreshToken: string): Promise<void> => {
-    await AsyncStorage.multiSet([
-      [STORAGE_KEYS.ACCESS_TOKEN, accessToken],
-      [STORAGE_KEYS.REFRESH_TOKEN, refreshToken],
-    ]);
+    try {
+      console.log('💾 tokenManager.setTokens called');
+      console.log('   Access token length:', accessToken.length);
+      console.log('   Refresh token length:', refreshToken.length);
+      
+      await AsyncStorage.multiSet([
+        [STORAGE_KEYS.ACCESS_TOKEN, accessToken],
+        [STORAGE_KEYS.REFRESH_TOKEN, refreshToken],
+      ]);
+      
+      console.log('✅ Tokens stored successfully');
+      
+      // Verify tokens were stored
+      const verifyAccess = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+      const verifyRefresh = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+      console.log('✅ Verification - Access token:', verifyAccess ? 'PRESENT' : 'MISSING');
+      console.log('✅ Verification - Refresh token:', verifyRefresh ? 'PRESENT' : 'MISSING');
+    } catch (error) {
+      console.error('❌ Error setting tokens:', error);
+      throw error;
+    }
   },
 
   clearTokens: async (): Promise<void> => {
@@ -137,6 +191,20 @@ export const tokenManager = {
       STORAGE_KEYS.REFRESH_TOKEN,
       STORAGE_KEYS.USER_DATA,
     ]);
+  },
+
+  // Helper to verify token exists
+  verifyToken: async (): Promise<boolean> => {
+    try {
+      console.log('🔍 Verifying token presence...');
+      const token = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+      const exists = !!token;
+      console.log('🔍 Token verification result:', exists ? '✅ EXISTS' : '❌ MISSING');
+      return exists;
+    } catch (error) {
+      console.error('❌ Error verifying token:', error);
+      return false;
+    }
   },
 };
 

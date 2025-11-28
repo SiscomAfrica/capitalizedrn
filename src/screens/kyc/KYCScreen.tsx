@@ -175,18 +175,18 @@ export const KYCScreen: React.FC = () => {
       // Update user KYC status (should be "pending" after submission)
       updateUser({ kyc_status: submitResponse.kyc_status });
 
-      // Show success message and navigate to Main Tabs
-      // According to Sequence Diagram: Phase 2 complete, KYC is pending review
+      // Show success message and navigate to Subscription screen
+      // According to Sequence Diagram: Phase 2 complete, now go to Phase 3 (Subscription)
       Alert.alert(
         '✅ KYC Submitted Successfully!',
-        submitResponse.message || 'Your documents are under review. This may take up to 24 hours. You can explore the app while waiting.',
+        'Great! Now choose a subscription plan to continue. We offer a free trial option!',
         [
           {
             text: 'Continue',
             onPress: () => {
-              // Navigate to MainTabs - user can browse but can't invest until KYC approved
-              console.log('📋 Phase 2 complete: KYC submitted, navigating to app...');
-              navigation.replace('MainTabs');
+              // Navigate to Subscription screen - user MUST choose a plan before proceeding
+              console.log('📋 Phase 2 complete: KYC submitted, navigating to Subscription...');
+              navigation.replace('Subscription');
             },
           },
         ]

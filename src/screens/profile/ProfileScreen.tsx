@@ -9,14 +9,21 @@ import {
   Alert,
   TouchableOpacity,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../types';
 import { Button, Input } from '../../components/common';
 import { colors, spacing, typography } from '../../theme';
-import { userApi, kycApi } from '../../services/api';
+import { userApi, kycApi, subscriptionApi } from '../../services/api';
 import { useUserStore, useAuthStore, useKYCStore } from '../../store';
 import { AxiosError } from 'axios';
 import { APIErrorResponse } from '../../types/api';
+import Icon from 'react-native-vector-icons/Ionicons';
+
+type ProfileScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 
 export const ProfileScreen: React.FC = () => {
+  const navigation = useNavigation<ProfileScreenNavigationProp>();
   const { user, setUser, updateUser } = useUserStore();
   const { clearAuth } = useAuthStore();
   const { kycStatus, setKYCStatus } = useKYCStore();
@@ -27,6 +34,7 @@ export const ProfileScreen: React.FC = () => {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [subscriptionInfo, setSubscriptionInfo] = useState<any>(null);
 
   useEffect(() => {
     loadUserProfile();
@@ -41,6 +49,16 @@ export const ProfileScreen: React.FC = () => {
       // Load KYC status
       const kycStatusData = await kycApi.getKYCStatus();
       setKYCStatus(kycStatusData);
+
+      // Load subscription info if user has subscription
+      if (userProfile.has_subscription) {
+        try {
+          const subData = await subscriptionApi.getMySubscription();
+          setSubscriptionInfo(subData.subscription);
+        } catch (subError) {
+          console.log('Could not load subscription info:', subError);
+        }
+      }
 
       // Populate form fields
       setAddress(userProfile.address || '');
@@ -174,6 +192,66 @@ export const ProfileScreen: React.FC = () => {
             </View>
           )}
         </View>
+
+        {/* Subscription Card */}
+        {user?.has_subscription && subscriptionInfo ? (
+          <View style={styles.card}>
+            <View style={styles.cardHeaderRow}>
+              <Text style={styles.cardTitle}>Subscription</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('MySubscription')}>
+                <Text style={styles.manageLink}>Manage</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.subscriptionContent}>
+              <View style={styles.subscriptionIconContainer}>
+                <Icon name="shield-checkmark" size={32} color={colors.primary} />
+              </View>
+              
+              <View style={styles.subscriptionDetails}>
+                <Text style={styles.subscriptionPlanName}>{subscriptionInfo.plan.name}</Text>
+                <View style={styles.subscriptionStatusRow}>
+                  <View style={[styles.statusDot, { backgroundColor: subscriptionInfo.status === 'active' ? colors.success : colors.error }]} />
+                  <Text style={styles.subscriptionStatus}>{subscriptionInfo.status}</Text>
+                  {subscriptionInfo.is_trial && (
+                    <View style={styles.trialPill}>
+                      <Text style={styles.trialPillText}>FREE TRIAL</Text>
+                    </View>
+                  )}
+                </View>
+                
+                <View style={styles.subscriptionDaysRow}>
+                  <Icon name="time-outline" size={16} color={colors.gray600} />
+                  <Text style={styles.subscriptionDaysText}>
+                    {subscriptionInfo.days_remaining} days remaining
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <TouchableOpacity 
+              style={styles.viewDetailsButton}
+              onPress={() => navigation.navigate('MySubscription')}>
+              <Text style={styles.viewDetailsButtonText}>View Details</Text>
+              <Icon name="arrow-forward" size={16} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        ) : user?.has_subscription === false && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Subscription</Text>
+            <View style={styles.noSubscriptionContainer}>
+              <Icon name="alert-circle-outline" size={48} color={colors.gray400} />
+              <Text style={styles.noSubscriptionText}>No active subscription</Text>
+              <Button
+                title="Browse Plans"
+                onPress={() => navigation.navigate('Subscription')}
+                variant="primary"
+                size="medium"
+                style={styles.browsePlansButton}
+              />
+            </View>
+          </View>
+        )}
 
         {/* Profile Update Form */}
         <View style={styles.formCard}>
@@ -319,6 +397,103 @@ const styles = StyleSheet.create({
   },
   updateButton: {
     marginTop: spacing.md,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  manageLink: {
+    fontSize: typography.fontSize.base,
+    color: colors.primary,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  subscriptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  subscriptionIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subscriptionDetails: {
+    flex: 1,
+  },
+  subscriptionPlanName: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  subscriptionStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  subscriptionStatus: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray700,
+    textTransform: 'capitalize',
+  },
+  trialPill: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  trialPillText: {
+    fontSize: typography.fontSize.xs,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.white,
+  },
+  subscriptionDaysRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs / 2,
+  },
+  subscriptionDaysText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray600,
+  },
+  viewDetailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray200,
+    paddingTop: spacing.md,
+  },
+  viewDetailsButtonText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.primary,
+  },
+  noSubscriptionContainer: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    gap: spacing.md,
+  },
+  noSubscriptionText: {
+    fontSize: typography.fontSize.base,
+    color: colors.gray600,
+  },
+  browsePlansButton: {
+    marginTop: spacing.sm,
   },
 });
 
