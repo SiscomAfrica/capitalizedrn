@@ -73,7 +73,6 @@ export const RegistrationScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      // Normalize phone number to international format
       const normalizedPhone = phone.startsWith('+') 
         ? phone.replace(/\s/g, '') 
         : phone.replace(/^0/, '+254').replace(/\s/g, '');

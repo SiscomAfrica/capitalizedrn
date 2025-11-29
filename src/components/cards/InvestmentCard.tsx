@@ -40,7 +40,7 @@ export const InvestmentCard: React.FC<InvestmentCardProps> = ({
       />
       <View style={styles.overlay}>
         <View style={styles.badges}>
-          {investment.isFeatured && (
+          {investment.status === 'active' && (
             <Badge label="⭐ Featured" variant="featured" size="small" />
           )}
           <Badge label={investment.category} variant="default" size="small" />
@@ -72,7 +72,7 @@ export const InvestmentCard: React.FC<InvestmentCardProps> = ({
 
         <View style={styles.actions}>
           <Text style={styles.interested}>
-            👥 {investment.interested} interested
+            👥 Interested
           </Text>
           <Text style={styles.viewDetails}>View Details →</Text>
         </View>

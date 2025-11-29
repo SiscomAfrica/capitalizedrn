@@ -19,7 +19,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({
       onPress={onPress}
       activeOpacity={0.8}>
       <View style={styles.badges}>
-        {session.tags.map((tag, index) => (
+        {session.tags.map((tag: string, index: number) => (
           <Badge
             key={index}
             label={tag}

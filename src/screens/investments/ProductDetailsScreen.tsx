@@ -104,7 +104,6 @@ export const ProductDetailsScreen: React.FC = () => {
 
     const numAmount = parseFloat(amount);
     
-    // TODO: Navigate to confirmation screen or initiate payment
     Alert.alert(
       'Confirm Investment',
       `You are about to invest $${numAmount.toLocaleString()} in ${selectedProduct?.name}. This will initiate an STK Push to your phone.`,

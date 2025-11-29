@@ -9,10 +9,7 @@ import {
 } from '../../types/api';
 
 export const kycApi = {
-  /**
-   * Get presigned URLs for document upload
-   * POST /auth/kyc/upload-urls
-   */
+
   getUploadUrls: async (): Promise<KYCUploadURLsResponse> => {
     const response = await apiClient.post<KYCUploadURLsResponse>('/auth/kyc/upload-urls');
     return response.data;
@@ -33,15 +30,12 @@ export const kycApi = {
       try {
         console.log('📤 Reading file from:', fileUri);
         
-        // Convert file:// URI to file path for react-native-fs
         const filePath = fileUri.startsWith('file://') ? fileUri.replace('file://', '') : fileUri;
         
-        // Read file as base64 using react-native-fs
         RNFS.readFile(filePath, 'base64')
           .then((base64Data) => {
             console.log('✅ File read successfully, size:', base64Data.length, 'chars');
             
-            // Parse presigned URL to extract required headers
             const urlMatch = uploadUrl.match(/X-Amz-SignedHeaders=([^&]+)/);
             const signedHeaders = urlMatch ? decodeURIComponent(urlMatch[1]).split(';') : [];
             
@@ -55,34 +49,26 @@ export const kycApi = {
               bytes[i] = binaryString.charCodeAt(i);
             }
             
-            // Build headers object - ONLY include headers that are in the signature
             const headers: Record<string, string> = {};
             
-            // Content-Type is in the signed headers
             if (signedHeaders.includes('content-type')) {
               headers['Content-Type'] = contentType;
             }
             
-            // Check if x-amz-server-side-encryption is in signed headers
-            // If it is, we need to determine its value from the backend
-            // For now, try without it to see if that's the issue
+
             if (signedHeaders.includes('x-amz-server-side-encryption')) {
-              // The presigned URL expects this header but we don't know the value
-              // Common values: 'AES256' or 'aws:kms'
-              // Try AES256 as it's the most common
+
               headers['x-amz-server-side-encryption'] = 'AES256';
               console.log('🔐 Added x-amz-server-side-encryption header: AES256');
             }
             
-            console.log('📋 Request headers:', headers);
+            console.log('Request headers:', headers);
             
-            // Use axios for S3 upload - better header control
             axios.put(uploadUrl, bytes, {
               headers,
               timeout: 60000,
               maxContentLength: Infinity,
               maxBodyLength: Infinity,
-              // Don't transform the request - send raw binary
               transformRequest: [],
             })
             .then((response) => {
@@ -108,19 +94,13 @@ export const kycApi = {
     });
   },
 
-  /**
-   * Submit KYC documents for review
-   * POST /auth/kyc/submit
-   */
+
   submitKYC: async (data: SubmitKYCRequest): Promise<KYCSubmitResponse> => {
     const response = await apiClient.post<KYCSubmitResponse>('/auth/kyc/submit', data);
     return response.data;
   },
 
-  /**
-   * Get KYC status
-   * GET /auth/kyc-status
-   */
+
   getKYCStatus: async (): Promise<KYCStatusResponse> => {
     const response = await apiClient.get<KYCStatusResponse>('/auth/kyc-status');
     return response.data;

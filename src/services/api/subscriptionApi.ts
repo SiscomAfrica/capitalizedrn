@@ -70,44 +70,35 @@ export interface StartTrialResponse {
  * Handles all subscription-related API calls
  */
 export const subscriptionApi = {
-  /**
-   * Get all active subscription plans
-   * GET /subscriptions/plans
-   */
+
   getPlans: async (): Promise<SubscriptionPlansResponse> => {
     try {
-      console.log('📋 Fetching subscription plans...');
+      console.log('Fetching subscription plans...');
       const response = await apiClient.get<SubscriptionPlansResponse>('/subscriptions/plans');
-      console.log('✅ Plans fetched successfully:', response.data);
+      console.log('Plans fetched successfully:', response.data);
       return response.data;
     } catch (error) {
-      console.error('❌ Error fetching plans:', error);
+      console.error('Error fetching plans:', error);
       throw error;
     }
   },
 
-  /**
-   * Get details of a specific subscription plan
-   * GET /subscriptions/plans/{plan_id}
-   */
+
   getPlanDetails: async (planId: string): Promise<SubscriptionPlanDetailsResponse> => {
     try {
-      console.log('📋 Fetching plan details for:', planId);
+      console.log('Fetching plan details for:', planId);
       const response = await apiClient.get<SubscriptionPlanDetailsResponse>(
         `/subscriptions/plans/${planId}`
       );
-      console.log('✅ Plan details fetched successfully:', response.data);
+      console.log('Plan details fetched successfully:', response.data);
       return response.data;
     } catch (error) {
-      console.error('❌ Error fetching plan details:', error);
+      console.error('Error fetching plan details:', error);
       throw error;
     }
   },
 
-  /**
-   * Subscribe to a plan
-   * POST /subscriptions/subscribe
-   */
+
   subscribe: async (planId: string): Promise<SubscribeResponse> => {
     try {
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -142,10 +133,7 @@ export const subscriptionApi = {
     }
   },
 
-  /**
-   * Get current user's subscription
-   * GET /subscriptions/my-subscription
-   */
+
   getMySubscription: async (): Promise<MySubscriptionResponse> => {
     try {
       console.log('📋 Fetching user subscription...');
@@ -158,10 +146,7 @@ export const subscriptionApi = {
     }
   },
 
-  /**
-   * Cancel current subscription
-   * POST /subscriptions/cancel
-   */
+
   cancelSubscription: async (): Promise<CancelSubscriptionResponse> => {
     try {
       console.log('🚫 Cancelling subscription...');
@@ -174,10 +159,7 @@ export const subscriptionApi = {
     }
   },
 
-  /**
-   * Start a free trial subscription (7 days, one per user)
-   * POST /subscriptions/start-trial
-   */
+
   startTrial: async (): Promise<StartTrialResponse> => {
     try {
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

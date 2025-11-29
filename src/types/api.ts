@@ -102,7 +102,7 @@ export interface UserResponse {
   kyc_submitted_at: string | null;
   kyc_reviewed_at: string | null;
   kyc_rejection_reason: string | null;
-  has_subscription?: boolean; // Track if user has chosen any subscription plan
+  has_subscription?: boolean; 
   subscription_active?: boolean;
   subscription_expires_at?: string | null;
   is_active: boolean;

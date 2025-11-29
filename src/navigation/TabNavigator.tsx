@@ -4,7 +4,6 @@ import { StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { MainTabParamList } from '../types';
 import { InvestmentsNavigator } from './InvestmentsNavigator';
-import { PortfolioScreen } from '../screens/portfolio/PortfolioScreen';
 import { CommunityScreen } from '../screens/community/CommunityScreen';
 import { ProfileScreen } from '../screens/profile';
 import { colors, spacing } from '../theme';
@@ -33,7 +32,7 @@ export const TabNavigator: React.FC = () => {
       />
       <Tab.Screen
         name="Portfolio"
-        component={PortfolioScreen}
+        component={ProfileScreen}
         options={{
           tabBarIcon: ({ focused, color }) => (
             <Icon name={focused ? 'briefcase' : 'briefcase-outline'} size={24} color={color} />

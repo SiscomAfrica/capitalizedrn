@@ -77,17 +77,15 @@ export const ProfileCompletionScreen: React.FC = () => {
     try {
       console.log('📝 Updating user profile...');
       
-      // Call API to update profile
       const response = await userApi.updateProfile({
         address: address.trim(),
         city: city.trim(),
         country: country.trim(),
-        date_of_birth: `${dateOfBirth}T00:00:00Z`, // Convert to ISO format
+        date_of_birth: `${dateOfBirth}T00:00:00Z`, 
       });
 
       console.log('✅ Profile updated successfully:', response);
 
-      // Update user in store
       await updateUser({
         profile_completed: response.profile_completed,
         address: response.address,
@@ -104,8 +102,6 @@ export const ProfileCompletionScreen: React.FC = () => {
           {
             text: 'Continue to KYC',
             onPress: () => {
-              // The RootNavigator will automatically show KYC screen
-              // since profile_completed is now true but kyc_status is still not_submitted
             },
           },
         ]

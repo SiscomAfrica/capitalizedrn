@@ -67,41 +67,31 @@ export const LoginScreen: React.FC = () => {
 
       console.log('✅ Login successful, user data:', response.user);
 
-      // Step 2: Check if phone is verified FIRST
       if (!response.user.phone_verified) {
         console.log('📱 Phone not verified - navigating to verification screen');
         
-        // Store tokens temporarily (but don't set isAuthenticated yet)
         await setTokensOnly(response.access_token, response.refresh_token);
         
-        // Store user data
         await setUser(response.user);
         
-        // Navigate to VerifyCode screen - user must verify phone before proceeding
         navigation.navigate('VerifyCode', {
           email: response.user.email,
           phone: response.user.phone,
         });
         
-        return; // Stop here - don't set authenticated until phone is verified
+        return; 
       }
 
-      // Step 3: Phone is verified - proceed with normal flow
-      // Store tokens
       await setTokensOnly(response.access_token, response.refresh_token);
 
-      // Step 4: Store user data from login response (no extra API call needed)
       await setUser(response.user);
 
-      // Step 5: Set authenticated - RootNavigator will handle routing based on user state
-      // Follows Sequence Diagram: Profile → KYC → Subscription → Investment
       setAuthenticated(true);
 
       console.log('🔐 Authentication successful. RootNavigator will handle routing...');
     } catch (error) {
       console.error('❌ Login failed:', error);
       
-      // Clear any tokens that might have been set
       const { clearAuth } = useAuthStore.getState();
       await clearAuth();
       

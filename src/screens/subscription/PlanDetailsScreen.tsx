@@ -83,7 +83,6 @@ export const PlanDetailsScreen: React.FC = () => {
               console.log('💳 SUBSCRIPTION REQUEST INITIATED');
               console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
               
-              // STEP 1: Verify token exists BEFORE making the API call
               console.log('🔐 STEP 1: Verifying authentication token...');
               const hasToken = await tokenManager.verifyToken();
               
@@ -137,7 +136,6 @@ export const PlanDetailsScreen: React.FC = () => {
               if (response.success) {
                 console.log('✅ Subscription successful! Updating user state...');
                 
-                // Update user subscription status
                 updateUser({
                   has_subscription: true,
                   subscription_active: true,

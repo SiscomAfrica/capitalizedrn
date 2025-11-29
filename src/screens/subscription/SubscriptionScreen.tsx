@@ -35,7 +35,6 @@ export const SubscriptionScreen: React.FC = () => {
   const { updateUser, user } = useUserStore();
   const { clearAuth } = useAuthStore();
 
-  // Fetch available subscription plans on mount
   useEffect(() => {
     fetchPlans();
   }, []);
@@ -80,7 +79,6 @@ export const SubscriptionScreen: React.FC = () => {
               console.log('🎁 FREE TRIAL REQUEST INITIATED');
               console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
               
-              // STEP 1: Verify token exists BEFORE making the API call
               console.log('🔐 STEP 1: Verifying authentication token...');
               const hasToken = await tokenManager.verifyToken();
               
@@ -96,7 +94,6 @@ export const SubscriptionScreen: React.FC = () => {
                       text: 'OK',
                       onPress: async () => {
                         await clearAuth();
-                        // Navigation will be handled by RootNavigator
                       },
                     },
                   ]
@@ -131,17 +128,13 @@ export const SubscriptionScreen: React.FC = () => {
               if (response.success) {
                 console.log('✅ Free trial started successfully! Updating user state...');
                 
-                // Update user subscription status
-                // has_subscription: track that user has chosen a plan (free trial counts)
-                // subscription_active: track if subscription is currently active
-                // can_invest: will be true only when both subscription active AND KYC approved
+      
                 updateUser({ 
                   has_subscription: true,
                   subscription_active: true,
-                  can_invest: user?.kyc_status === 'approved', // Only allow investing if KYC approved
+                  can_invest: user?.kyc_status === 'approved', 
                 });
                 
-                // Show success and navigate to main app
                 const message = user?.kyc_status === 'approved'
                   ? 'Your 7-day free trial is now active. Enjoy full access to all features!'
                   : 'Your free trial is active! You can explore the app. Investment features will be available once your KYC is approved.';
@@ -478,6 +471,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success + '10',
   },
   cardHeader: {
+    marginBottom: spacing.lg,
+  },
+  priceContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: spacing.lg,
   },
   badge: {

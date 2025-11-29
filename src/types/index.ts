@@ -26,6 +26,8 @@ export interface Investment {
   risks: string[];
   image: string;
   status: 'active' | 'closed' | 'upcoming';
+  isFeatured?: boolean;
+  interested?: number;
 }
 
 export interface UserInvestment {
@@ -56,6 +58,47 @@ export interface CommunityMember {
   email?: string;
   phone?: string;
   profileImage?: string;
+}
+
+export interface Session {
+  id?: string;
+  title: string;
+  speaker: string;
+  date: string;
+  time: string;
+  tags: string[];
+}
+
+export interface Speaker {
+  id?: string;
+  name: string;
+  title: string;
+  company: string;
+  bio?: string;
+  image?: string;
+}
+
+export interface Event {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  date: string;
+  time: string;
+  image: string;
+  sessions: Session[];
+  speakers: Speaker[];
+}
+
+export interface Transaction {
+  id: string;
+  type: 'investment' | 'return';
+  amount: number;
+  currency: string;
+  status: 'completed' | 'pending' | 'failed';
+  date: Date;
+  description: string;
+  investmentId?: string;
 }
 
 export interface KYCData {

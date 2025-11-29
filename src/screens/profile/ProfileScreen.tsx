@@ -116,7 +116,6 @@ export const ProfileScreen: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             await clearAuth();
-            // Navigation will be handled by RootNavigator
           },
         },
       ]

@@ -41,7 +41,6 @@ export const VerifyCodeScreen: React.FC = () => {
   const { setTokensOnly, setAuthenticated } = useAuthStore();
   const { setUser } = useUserStore();
 
-  // Auto-send OTP when screen loads (for login flow)
   React.useEffect(() => {
     const sendInitialOTP = async () => {
       if (!otpSent) {
@@ -52,7 +51,6 @@ export const VerifyCodeScreen: React.FC = () => {
           console.log('✅ OTP sent successfully:', response.message);
         } catch (err) {
           console.error('❌ Failed to send OTP:', err);
-          // Don't show error - user can still click resend manually
         }
       }
     };
@@ -62,7 +60,6 @@ export const VerifyCodeScreen: React.FC = () => {
 
   const handleCodeChange = (text: string, index: number) => {
     if (text.length > 1) {
-      // Handle paste
       const pastedCode = text.slice(0, 6).split('');
       const newCode = [...code];
       pastedCode.forEach((char, i) => {
@@ -72,7 +69,6 @@ export const VerifyCodeScreen: React.FC = () => {
       });
       setCode(newCode);
       
-      // Focus the last filled input or the next empty one
       const nextIndex = Math.min(index + pastedCode.length, 5);
       inputRefs.current[nextIndex]?.focus();
       return;
@@ -109,7 +105,6 @@ export const VerifyCodeScreen: React.FC = () => {
       console.log('📱 Verifying phone with OTP:', verificationCode);
       console.log('📱 Phone number:', phone);
       
-      // Step 1: Verify phone with OTP - gets NEW tokens
       const response = await authApi.verifyPhone({
         otp: verificationCode,
         phone,
@@ -119,16 +114,13 @@ export const VerifyCodeScreen: React.FC = () => {
         response.access_token ? 'YES' : 'NO'
       );
 
-      // Step 2: Store NEW tokens from verification response
       console.log('💾 Saving tokens to storage...');
       await setTokensOnly(response.access_token, response.refresh_token);
       
-      // Wait a moment to ensure tokens are saved to AsyncStorage
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise<void>(resolve => setTimeout(() => resolve(), 500));
       
       console.log('✅ Tokens saved successfully');
 
-      // Step 3: Fetch updated user profile with the new tokens
       console.log('👤 Fetching user profile with new tokens...');
       const userProfile = await userApi.getCurrentUser();
       await setUser(userProfile);
@@ -139,22 +131,18 @@ export const VerifyCodeScreen: React.FC = () => {
         kyc_status: userProfile.kyc_status,
       });
 
-      // Step 4: Set authenticated - phone is now verified
-      // RootNavigator will handle routing to ProfileCompletion/KYC/etc based on user state
       setAuthenticated(true);
 
       console.log('🔐 User authenticated. RootNavigator will handle routing...');
       
-      // Show success message
       Alert.alert(
-        '✅ Phone Verified!',
+        'Phone Verified!',
         'Your phone has been verified successfully.',
         [{ text: 'Continue' }]
       );
     } catch (err) {
       console.error('❌ Verification failed:', err);
       
-      // Clear any tokens that might have been set
       const { clearAuth } = useAuthStore.getState();
       await clearAuth();
       

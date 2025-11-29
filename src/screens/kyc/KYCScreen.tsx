@@ -114,10 +114,9 @@ export const KYCScreen: React.FC = () => {
 
   const uploadImageToS3 = async (imageData: UploadedImage, uploadUrl: string): Promise<void> => {
     try {
-      console.log('📤 Uploading image to S3:', imageData.fileName);
-      console.log('📤 Image URI:', imageData.uri);
+      console.log('Uploading image to S3:', imageData.fileName);
+      console.log('Image URI:', imageData.uri);
       
-      // Use kycApi.uploadFileToS3 which handles React Native file reading
       await kycApi.uploadFileToS3(uploadUrl, imageData.uri, imageData.type);
       
       console.log('✅ Image uploaded to S3 successfully');
@@ -153,17 +152,14 @@ export const KYCScreen: React.FC = () => {
     setSubmitting(true);
     
     try {
-      // Step 1: Get presigned upload URLs
       const uploadUrls = await kycApi.getUploadUrls();
 
-      // Step 2: Upload images to S3
       await Promise.all([
         uploadImageToS3(idFrontPhoto, uploadUrls.id_front.upload_url),
         uploadImageToS3(idBackPhoto, uploadUrls.id_back.upload_url),
         uploadImageToS3(selfiePhoto, uploadUrls.selfie.upload_url),
       ]);
 
-      // Step 3: Submit KYC with S3 URLs
       const submitResponse = await kycApi.submitKYC({
         id_front_url: uploadUrls.id_front.s3_url,
         id_back_url: uploadUrls.id_back.s3_url,
@@ -172,20 +168,16 @@ export const KYCScreen: React.FC = () => {
         id_type: idType,
       });
 
-      // Update user KYC status (should be "pending" after submission)
       updateUser({ kyc_status: submitResponse.kyc_status });
 
-      // Show success message and navigate to Subscription screen
-      // According to Sequence Diagram: Phase 2 complete, now go to Phase 3 (Subscription)
       Alert.alert(
-        '✅ KYC Submitted Successfully!',
+        'KYC Submitted Successfully!',
         'Great! Now choose a subscription plan to continue. We offer a free trial option!',
         [
           {
             text: 'Continue',
             onPress: () => {
-              // Navigate to Subscription screen - user MUST choose a plan before proceeding
-              console.log('📋 Phase 2 complete: KYC submitted, navigating to Subscription...');
+              console.log('Phase 2 complete: KYC submitted, navigating to Subscription...');
               navigation.replace('Subscription');
             },
           },
