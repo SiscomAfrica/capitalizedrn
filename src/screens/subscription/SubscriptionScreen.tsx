@@ -239,7 +239,7 @@ export const SubscriptionScreen: React.FC = () => {
           disabled={loading}>
           <View style={styles.cardHeader}>
             <View style={[styles.badge, styles.trialBadge]}>
-              <Text style={styles.badgeText}>🎁 FREE TRIAL</Text>
+              <Text style={styles.badgeText}>FREE TRIAL</Text>
             </View>
           </View>
 

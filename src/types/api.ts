@@ -155,3 +155,88 @@ export interface APIErrorResponse {
   detail?: string;
 }
 
+// Investment Product Types
+export type InvestmentType = 'micro-node' | 'mega-node' | 'full-node' | 'terranode';
+export type ProductStatus = 'active' | 'draft' | 'funding_complete' | 'cancelled';
+
+export interface InvestmentProduct {
+  id: string;
+  name: string;
+  slug: string;
+  investment_type: InvestmentType;
+  price_per_unit: number;
+  minimum_investment: number;
+  expected_annual_return: number;
+  status: ProductStatus;
+  description?: string;
+  investment_duration_months?: number;
+  features?: string[];
+  technical_specs?: Record<string, any>;
+  category?: InvestmentCategory;
+}
+
+export interface InvestmentCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  is_active: boolean;
+}
+
+export interface InvestmentProductsResponse {
+  products: InvestmentProduct[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface InvestmentProductParams {
+  category?: string;
+  investment_type?: InvestmentType;
+  status?: ProductStatus;
+  min_price?: number;
+  max_price?: number;
+  search?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface YearlyReturn {
+  year: number;
+  return: number;
+  cumulative: number;
+}
+
+export interface InvestmentProjection {
+  investment_amount: number;
+  investment_type: InvestmentType;
+  duration_years: number;
+  yearly_returns: YearlyReturn[];
+  total_return: number;
+  final_value: number;
+  roi_percentage: number;
+}
+
+export interface InvestmentProjectionRequest {
+  amount: number;
+}
+
+export interface CreateInvestmentRequest {
+  product_slug: string;
+  amount: number;
+  payment_method?: string;
+}
+
+export interface UserInvestmentResponse {
+  id: string;
+  product: InvestmentProduct;
+  amount: number;
+  units: number;
+  status: 'pending' | 'active' | 'completed' | 'cancelled';
+  created_at: string;
+  updated_at: string;
+  expected_return: number;
+  current_value: number;
+}
+

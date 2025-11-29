@@ -8,12 +8,16 @@ import {
   SafeAreaView,
   StatusBar,
   ActivityIndicator,
+  TextInput,
+  ScrollView,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { InvestmentsStackParamList, Investment } from '../../types';
-import { InvestmentCard } from '../../components/cards';
+import { InvestmentsStackParamList } from '../../types';
+import { InvestmentProductCard } from '../../components/cards';
 import { colors, spacing, typography } from '../../theme';
+import { useInvestmentStore } from '../../store/investmentStore';
+import { InvestmentType, ProductStatus } from '../../types/api';
 
 type InvestmentListNavigationProp = NativeStackNavigationProp<
   InvestmentsStackParamList,
